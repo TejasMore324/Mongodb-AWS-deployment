@@ -1,5 +1,5 @@
 
-# Deploying high available MongoDB Replica set on AWS
+# Deploy a Highly-Available MongoDB Replica Set on AWS
 
 Deploying a highly available MongoDB replica set on AWS involves careful planning, proper configuration of AWS resources, and meticulous setup of MongoDB instances. 
 
