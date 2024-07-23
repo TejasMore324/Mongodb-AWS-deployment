@@ -573,9 +573,8 @@ echo "Backup available at https://s3.amazonaws.com/$BUCKET/$TIME.gz"
   Default output format [None]: json
 
 ```
-## Fill in Database and S3 Information
+## Edit the script
 
-- **Edit the script:**
    - Open the script for editing:
      ```sh
      sudo nano /home/ubuntu/backup.sh
