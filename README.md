@@ -1,4 +1,11 @@
 
+# Deploying high available MongoDB Replica set to AWS
+
+Deploying a highly available MongoDB replica set on AWS involves careful planning, proper configuration of AWS resources, and meticulous setup of MongoDB instances. 
+
+Distributing instances across multiple availability zones, ensuring proper security, and backup strategies are key to maintaining a robust and reliable MongoDB deployment on AWS.
+
+
 
 Here is a detailed step-by-step guide that integrates AWS configuration and MongoDB setup.
 
@@ -219,7 +226,7 @@ In addition, verify that the disk read-ahead value is correct by running:
 ```
 sudo blockdev --getra /dev/xvda1
 ```
-It should print 32.
+It should print ```32```.
 
 Verify the configuration for all replica set members.
 
@@ -269,39 +276,45 @@ Run the following commands to install the latest stable 6.0 version of MongoDB:
     ```bash
     ps -aef | grep mongod
     ```
-### Create keyFile
+## Create keyFile
 
-The keyFile stores the password used by each node. The password allows each node to authenticate to each other, allowing them replicate changes between each other. This password should be long and very complex. We’ll use the openssl command to ensure our password is complex.
+The keyFile stores the password used by each node. 
+
+The password allows each node to authenticate to each other, allowing them replicate changes between each other.
+
+ This password should be long and very complex. 
+
+- We’ll use the openssl command to ensure our password is complex.
 
 ```
 openssl rand -base64 741 > keyFile
 ```
-Create the directory where the key will be stored
+- Create the directory where the key will be stored
 
 ```
 sudo mkdir -p /opt/mongodb
 ```
-Copy the file to the new directory
+- Copy the file to the new directory
 
 ```
 sudo cp keyFile /opt/mongodb
 ```
-Set the ownership of the keyfile to mongodb.
+- Set the ownership of the keyfile to mongodb.
 ```
 sudo chown mongodb:mongodb /opt/mongodb/keyFile
 ```
-Set the appropriate file permissions.
+- Set the appropriate file permissions.
 
 ```
 sudo chmod 400 /opt/mongodb/keyFile
 ```
-Copy the ```KeyFile```  for all replica set members.
+- Copy the ```KeyFile```  for all replica set members.
 
 Now it's time to configure MongoDB to operate in replica set mode, as well as allow remote access to the server.
 ```
 sudo nano /etc/mongod.conf
 ```
-Find and remove ```bindIp: 127.0.0.1```, or prefix it with a ```#``` to comment it out:
+- Find and remove ```bindIp: 127.0.0.1```, or prefix it with a ```#``` to comment it out:
 ```
 # network interfaces
 net:
@@ -309,20 +322,20 @@ net:
 #  bindIp: 127.0.0.1  # remove or comment out this line
 ```
 
-Find the commented out ```security``` section and uncomment it. Use the path of the keyFile created earlier:
+- Find the commented out ```security``` section and uncomment it. Use the path of the keyFile created earlier:
 
 ```
 security:
   keyFile: /opt/mongodb/keyFile
   ```
-  Find the commented out ```replication``` section and uncomment it. 
+ - Find the commented out ```replication``` section and uncomment it. 
   
   Add the following below, replacing ```my-replica-set``` with a name for your replica set:
   ```
   replication:
   replSetName: my-replica-set
   ```
-Restart MongoDB to apply our changes.
+- Restart MongoDB to apply our changes.
 ```
 sudo systemctl restart mongod
 ```
@@ -337,14 +350,14 @@ Note that you only have to run these commands on one of the members.
 MongoDB will synchronize the replica set configuration to all of the other members automaticall
 
 
-1. Create directories for each instance:
+- Create directories for each instance:
     ```bash
     mkdir -p replicaset/member
     ```
 
 
 
- 2. Start MongoDB with Replica Set Configuration on each instance:
+ - Start MongoDB with Replica Set Configuration on each instance:
 
     ```
     nohup mongod --port 28041 --bind_ip localhost,db1.example.com --replSet replica_1 --dbpath replicaset/member &
@@ -353,23 +366,56 @@ MongoDB will synchronize the replica set configuration to all of the other membe
 
     nohup mongod --port 28043 --bind_ip localhost,arbiter.example.com --replSet replica_1 --dbpath replicaset/member &
     ```
-3. Create Admin Account
+
+## Initialize the Replica Set
+
+- Connect to the first server (primary):
+    ```bash
+    mongosh --host db1.example.com --port 28041
+    ```
+
+- Create the replica set configuration:
+    ```javascript
+    rsconf = {
+      _id: "replica_1",
+      members: [
+        { _id: 0, host: "db1.example.com:28041" },
+        { _id: 1, host: "db2.example.com:28042" },
+      ]
+    }
+    ```
+
+- Initiate the replica set:
+    ```javascript
+    rs.initiate(rsconf)
+    ```
+
+- Check the status:
+    ```javascript
+    rs.status()
+    ```
+
+- Check the current replica set configuration:
+    ```javascript
+    rs.conf()
+    ```
+## Create Admin Account
 
 The default MongoDB configuration is wide open, meaning anyone can access the stored databases unless your network has firewall rules in place.
 
-Create an admin user to access the database.
+- Create an admin user to access the database.
 
-```
-mongosh
-```
+  ```
+   mongosh
+  ```
 
-Select admin database.
+- Select admin database.
 
-```
-use admin
-```
+ ```
+  use admin
+  ```
 
-Create admin account.
+- Create admin account.
 
 ```
 db.createUser( {
@@ -379,67 +425,26 @@ db.createUser( {
 }); 
 ```
 It's recommended to not use special characters in the password to prevent issues logging in
-### Initialize the Replica Set
-
-1. Connect to the first server (primary):
-    ```bash
-    mongosh --host db1.example.com --port 28041
-    ```
-
-2. Create the replica set configuration:
-    ```javascript
-    rsconf = {
-      _id: "replica_demo",
-      members: [
-        { _id: 0, host: "db1.example.com:28041" },
-        { _id: 1, host: "db2.example.com:28042" },
-      ]
-    }
-    ```
-
-3. Initiate the replica set:
-    ```javascript
-    rs.initiate(rsconf)
-    ```
-
-4. Check the status:
-    ```javascript
-    rs.status()
-    ```
-
-5. Check the current replica set configuration:
-    ```javascript
-    rs.conf()
-    ```
-
 ### Add an Arbiter
 
-1. Create directories on the arbiter instance:
-    ```bash
-    mkdir -p replicaset/member
-    ```
 
-2. Start MongoDB on the arbiter instance:
-    ```bash
-    nohup mongod --port 28043 --bind_ip localhost,arbiter.example.com --replSet replica_demo --dbpath replicaset/member &
-    ```
-3. Set default write concern:
+- Set default write concern:
     ```javascript
     db.adminCommand({
       setDefaultRWConcern: 1,
       defaultWriteConcern: { w: 2 }
     })
     ```
-4. Add the arbiter:
+- Add the arbiter:
     ```javascript
     rs.addArb("arbiter.example.com:28043")
     ```
 
-5. If needed, remove the arbiter:
+- If needed, remove the arbiter:
     ```javascript
     rs.remove("arbiter.example.com:28043")
     ```
-6. Verify Replica Set Status
+- Verify Replica Set Status
 
 Take a look at the replica set status by running:
 ```javascript
@@ -447,7 +452,7 @@ rs.status()
 ```
 Inspect the members array. Look for one ```PRIMARY```, one ```SECONDARY```, and one  ```ARBITER``` member. 
 
-All members should have a health value of 1.
+All members should have a health value of ```1```.
 
 ### Connect MongoDB with Authentication
 
@@ -476,47 +481,57 @@ Don't forget to change:
 -`example-replica-set` to your own replica set name
 
 ## Automated Backup to AWS S3 ##
-create a file ```backup.sh```
-```
+
+
+###  Create the Backup Script
+
+ **Create a new script file:**
+   - Open a terminal on your server.
+   - Navigate to the `/home/ubuntu` directory:
+     ```sh
+     cd /home/ubuntu
+     ```
+   - Create the backup script file:
+     ```sh
+     sudo nano backup.sh
+     ```
+
+ **Copy the script into the file:**
+   - Copy the following script and paste it into the `backup.sh` file:
+
+```sh
 #!/bin/sh
 
 # Make sure to:
-# 1) Name this file `backup.sh` and place it in /home/ubuntu
+# 1) Name this file backup.sh and place it in /home/ubuntu
 # 2) Run sudo apt-get install awscli to install the AWSCLI
 # 3) Run aws configure (enter s3-authorized IAM user and specify region)
 # 4) Fill in DB host + name
 # 5) Create S3 bucket for the backups and fill it in below (set a lifecycle rule to expire files older than X days in the bucket)
 # 6) Run chmod +x backup.sh
 # 7) Test it out via ./backup.sh
-# 8) Set up a daily backup at midnight via `crontab -e`:
-#    0 0 * * * /home/ubuntu/backup.sh > /home/ubuntu/backup.log
+# 8) Set up a daily backup at midnight via crontab -e:
+#    0 0 * * * /home/ubuntu/backup.sh > /home/ubuntu/backup.log 2>&1
 
 # DB host (secondary preferred as to avoid impacting primary performance)
-
 HOST=db2.example.com
 
 # DB name
-
 DBNAME=dbName
 
 # S3 bucket name
-
 BUCKET=mongodb/backup
 
 # Current time
-
 TIME=`/bin/date +%m-%d-%Y-%T`
 
 # Username
-
 USERNAME=johndoe
 
 # Password
-
 PASSWORD=strongPassword
 
 # Log
-
 echo "Backing up $HOST/$DBNAME to s3://$BUCKET/ on $TIME";
 
 S3PATH="s3://$BUCKET/"
@@ -524,26 +539,90 @@ S3BACKUP=$S3PATH$TIME.gz
 S3LATEST=$S3PATH"latest".gz
 
 # Make S3 bucket
-
 /usr/bin/aws s3 mb $S3PATH
 
 # Dump from MongoDB data to S3
-
 /usr/bin/mongodump -h $HOST -d $DBNAME -p $PASSWORD -u $USERNAME --authenticationDatabase "admin" --gzip --archive | aws s3 cp - $S3BACKUP
 
 # Copy the new backup to latest
-
 /usr/bin/aws s3 cp $S3BACKUP $S3LATEST
 
 # All done
-
 echo "Backup available at https://s3.amazonaws.com/$BUCKET/$TIME.gz"
 
 # To restore database
-
 # aws s3 cp s3://mongodb/backup/latest.gz - | mongorestore -h db1.example.com -d dbName --archive --gzip -u johndoe -p strongPassword --authenticationDatabase admin
 ```
-## Conclusion 
 
-By following these steps, you will have a MongoDB replica set set up across multiple AWS EC2 instances with high availability and optimized configurations.
+
+##  Install AWS CLI
+
+- **Install AWS CLI:**
+    
+    Run the following commands to install AWS CLI:
+     ```
+     sudo apt-get install awscli -y
+     ```
+
+ **Configure AWS CLI:**
+  ```
+  [default] 
+  aws_access_key_id = xxxxxxxxxxxxxxxxxx 
+  aws_secret_access_key = xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+  Default region name [None]: YOUR_REGION
+  Default output format [None]: json
+
+```
+## Fill in Database and S3 Information
+
+- **Edit the script:**
+   - Open the script for editing:
+     ```sh
+     sudo nano /home/ubuntu/backup.sh
+     ```
+
+- **Update the database and S3 bucket information:**
+   - Replace `db2.example.com` with your MongoDB host.
+   - Replace `dbName` with your MongoDB database name.
+   - Replace `mongodb/backup` with your S3 bucket name.
+
+- **Update the authentication details:**
+   - Replace `johndoe` with your MongoDB ```username```.
+   - Replace `strongPassword` with your MongoDB ```password```.
+
+
+
+
+- **Make the script executable:**
+   - Run the following command to change the script's permissions:
+     ```sh
+     chmod +x /home/ubuntu/backup.sh
+     ```
+
+- **Run the script manually to test it:**
+   - Execute the script:
+     ```sh
+     ./backup.sh
+     or
+     bash backup.sh
+
+     ```
+
+## Set Up Daily Backup with Crontab
+
+- **Open crontab:**
+   
+    Run `sudo nano crontab -e` to edit the crontab file.
+
+- **Schedule the script to run daily at midnight:**
+   
+    Add the following line to the crontab file:
+    
+     ```sh
+     0 0 * * * /home/ubuntu/backup.sh > /home/ubuntu/backup.log 2>&1
+     ```
+
+ If it's your first time editing crontab, you might be asked to choose an editor. 
+ 
+ Select one and then add the line above.
 
