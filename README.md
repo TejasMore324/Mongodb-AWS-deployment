@@ -230,49 +230,49 @@ It should print ```32```.
 
 Verify the configuration for all replica set members.
 
-###  Install  MongoDB
+##  Install  MongoDB
 
 Run the following commands to install the latest stable 6.0 version of MongoDB:
 
-1. Install gnupg and curl:
+- Install gnupg and curl:
     ```bash
     sudo apt-get install gnupg curl
     ```
 
-2. Import the public key:
+- Import the public key:
     ```bash
     curl -fsSL https://www.mongodb.org/static/pgp/server-6.0.asc | sudo gpg -o /usr/share/keyrings/mongodb-server-6.0.gpg --dearmor
     ```
 
 
 
-3. Create list file:
+- Create list file:
     ```bash
     echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/6.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
     ```
 
-4. Update package database:
+- Update package database:
     ```bash
     sudo apt-get update
     ```
 
-5. Install MongoDB Packages:
+- Install MongoDB Packages:
     ```bash
     sudo apt-get install -y mongodb-org
     ```
 
 
 
-6. Start MongoDB service:
+- Start MongoDB service:
     ```bash
     sudo systemctl start mongod
     ```
 
-7. Check MongoDB status:
+- Check MongoDB status:
     ```bash
     sudo systemctl status mongod
     ```
-8. Verify MongoDB process:
+- Verify MongoDB process:
     ```bash
     ps -aef | grep mongod
     ```
@@ -617,7 +617,7 @@ echo "Backup available at https://s3.amazonaws.com/$BUCKET/$TIME.gz"
 - **Schedule the script to run daily at midnight:**
    
     Add the following line to the crontab file:
-    
+
      ```sh
      0 0 * * * /home/ubuntu/backup.sh > /home/ubuntu/backup.log 2>&1
      ```
