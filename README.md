@@ -1,5 +1,5 @@
 
-# Deploy a Highly-Available MongoDB Replica Set on AWS
+# Deploying high available MongoDB Replica set to AWS
 
 Deploying a highly available MongoDB replica set on AWS involves careful planning, proper configuration of AWS resources, and meticulous setup of MongoDB instances. 
 
@@ -80,9 +80,9 @@ The default file and process limits shipped with Ubuntu are not applicable for M
     ```
     Add the following lines:
     ```plaintext
-    * soft nofile 64000
+    * soft nofile 64000     # max number of processes
     * hard nofile 64000
-    * soft nproc 32000
+    * soft nproc 32000      # max number of open file descriptors
     * hard nproc 32000
     ```
 
@@ -573,8 +573,9 @@ echo "Backup available at https://s3.amazonaws.com/$BUCKET/$TIME.gz"
   Default output format [None]: json
 
 ```
-## Edit the script
+## Fill in Database and S3 Information
 
+- **Edit the script:**
    - Open the script for editing:
      ```sh
      sudo nano /home/ubuntu/backup.sh
